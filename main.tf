@@ -10,6 +10,32 @@
 terraform {
   required_version = ">= 1.5"
 
+  # The substrate's state store (ADR-0007). Offered, not mandated: a tenant that
+  # would rather carry its own custody deletes this block and keeps state local.
+  #
+  # The credential is scoped by the server to this tenant's own prefix, so it
+  # cannot read another tenant's state or the fabric's - verified, not assumed.
+  # It arrives as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, never as a file.
+  #
+  # use_lockfile is what this buys over state in a repository: two machines
+  # applying at once are refused by the server rather than silently overwriting
+  # one another.
+  backend "s3" {
+    bucket       = "tf-state"
+    key          = "tenants/tdemo/terraform.tfstate"
+    region       = "us-east-1"
+    endpoints    = { s3 = "http://tfstate.dvntm.deevnet.net:9000" }
+    use_lockfile = true
+
+    # MinIO, not AWS.
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+    skip_s3_checksum            = true
+    use_path_style              = true
+  }
+
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
