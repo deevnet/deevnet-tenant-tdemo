@@ -1,118 +1,73 @@
-# Demo tenant - proves the path end to end, then gets destroyed.
+# tdemo - the reference tenant.
 #
-# Everything about this tenant derives from tenant_index. That is the whole
-# point of the numbering scheme: one allocation, no per-tenant decisions, and
-# no way to collide with another tenant once the fabric has more members.
+# Copy this repository to create a tenant: change the name here, and nothing
+# else. Everything a tenant is - its index, network numbering, DNS zone and
+# key, state-store credential and workload addressing - is issued by the
+# Deevnet API (ADR-0015), so there is no number to allocate and no substrate
+# credential to fetch.
 #
-# Reads the fabric stack's outputs rather than hardcoding the controller or
-# node, so a tenant is portable across fabric members without edits.
+# What the tenant holds is one token: the single-use enrollment token the
+# substrate issues at admission, and then its own token, which lands in this
+# state on the first apply.
 
 terraform {
   required_version = ">= 1.5"
 
-  # The substrate's state store (ADR-0007). Offered, not mandated: a tenant that
-  # would rather carry its own custody deletes this block and keeps state local.
-  #
-  # The credential is scoped by the server to this tenant's own prefix, so it
-  # cannot read another tenant's state or the fabric's - verified, not assumed.
-  # It arrives as AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, never as a file.
-  #
-  # use_lockfile is what this buys over state in a repository: two machines
-  # applying at once are refused by the server rather than silently overwriting
-  # one another.
-  backend "s3" {
-    bucket       = "tf-state"
-    key          = "tenants/tdemo/terraform.tfstate"
-    region       = "us-east-1"
-    endpoints    = { s3 = "http://tfstate.mobile.deevnet.net:9000" }
-    use_lockfile = true
-
-    # MinIO, not AWS.
-    skip_credentials_validation = true
-    skip_region_validation      = true
-    skip_requesting_account_id  = true
-    skip_metadata_api_check     = true
-    skip_s3_checksum            = true
-    use_path_style              = true
-  }
-
   required_providers {
-    proxmox = {
-      source  = "bpg/proxmox"
-      version = "~> 0.101"
+    deevnet = {
+      source  = "deevnet/deevnet"
+      version = "~> 0.1"
     }
   }
+
+  # The state store the substrate offers (ADR-0007). It is deliberately
+  # commented out: its credentials are outputs of the tenant below, so the
+  # first apply runs with local state and the backend is configured after it,
+  # with `terraform init -migrate-state` and the values from
+  # `make state-backend`.
+  #
+  # A tenant that would rather keep its own custody simply leaves this out;
+  # the offer is not a requirement.
+  #
+  # backend "s3" {
+  #   bucket       = "tf-state"
+  #   key          = "tenants/tdemo/terraform.tfstate"
+  #   region       = "us-east-1"
+  #   endpoints    = { s3 = "http://tfstate.mobile.deevnet.net:9000" }
+  #   use_lockfile = true
+  #
+  #   # MinIO, not AWS.
+  #   skip_credentials_validation = true
+  #   skip_region_validation      = true
+  #   skip_requesting_account_id  = true
+  #   skip_metadata_api_check     = true
+  #   skip_s3_checksum            = true
+  #   use_path_style              = true
+  # }
 }
 
-provider "proxmox" {
-  endpoint  = replace(var.proxmox_url, "/api2/json", "")
-  api_token = "${var.proxmox_token_id}=${var.proxmox_token_secret}"
-  insecure  = true
+# endpoint, token and ca_certificate come from DEEVNET_API_ENDPOINT,
+# DEEVNET_API_TOKEN and DEEVNET_API_CACERT. The token is the enrollment token
+# on the first apply, and this tenant's own token afterwards.
+provider "deevnet" {}
+
+resource "deevnet_tenant" "this" {
+  name = var.tenant_name
 }
 
-# Publication credentials (ADR-0004). The key is scoped by the server to this
-# tenant's zones, so this configuration cannot write into another tenant's
-# namespace even by mistake - an update aimed elsewhere comes back REFUSED.
-provider "dns" {
-  update {
-    server        = var.dns_update_server
-    key_name      = "${var.tsig_key_name}."
-    key_algorithm = "hmac-sha256"
-    key_secret    = var.tsig_key_secret
-  }
+# One workload. The API picks its VMID, MAC and address from the tenant's
+# index; the tenant picks what it runs on.
+resource "deevnet_workload" "app" {
+  tenant    = deevnet_tenant.this.name
+  name      = "app"
+  cores     = var.vm_cores
+  memory_mb = var.vm_memory_mb
+  ssh_keys  = var.ssh_keys
 }
 
-# The module is consumed by tag, not by path (ADR-0006). The tag is never moved,
-# so this pins the module as precisely as the lock file pins the providers.
-# Moving to a newer tag requires an explicit `terraform init -upgrade` - plan and
-# apply will not pick one up, which is a feature and a trap in equal measure.
-module "tenant" {
-  source = "git::ssh://git@github.com/deevnet/deevnet-tenant-factory.git//modules/tenant?ref=tenant-module-v1.0.0"
-
-  tenant_name  = "tdemo"
-  tenant_index = 1
-
-  # Issued by the substrate at onboarding, in fabric.auto.tfvars - see ADR-0006.
-  # Previously read out of the fabric's Terraform state by relative path, which
-  # only worked while this tenant lived inside the factory repository.
-  controller_id = var.controller_id
-  node          = var.node
-
-
-  template_vm_id = var.template_vm_id
-  vm_count       = 1
-  ssh_keys       = var.ssh_keys
-
-  # Workload A and PTR records derive from the addressing, so nothing is listed
-  # here. dns_extra_records is where a tenant adds service names - the thing the
-  # Proxmox IPAM hook could never have given us.
-  dns_publish = true
-}
-
-output "subnet" {
-  value = module.tenant.subnet
-}
-
-output "gateway" {
-  value = module.tenant.gateway
-}
-
-output "vrf_vni" {
-  value = module.tenant.vrf_vni
-}
-
-output "vnet_ids" {
-  value = module.tenant.vnet_ids
-}
-
-output "vm_names" {
-  value = module.tenant.vm_names
-}
-
-output "dns_zone" {
-  value = module.tenant.dns_zone
-}
-
-output "dns_names" {
-  value = module.tenant.dns_names
+# A name beside the workload's own, for the service rather than the machine.
+resource "deevnet_dns_record" "service" {
+  tenant  = deevnet_tenant.this.name
+  name    = "service"
+  address = deevnet_workload.app.address
 }

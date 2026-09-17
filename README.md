@@ -1,81 +1,90 @@
 # tdemo
 
-> **Retired. Do not apply this repository.**
->
-> - **The tenant is gone.** `tdemo` was destroyed on 2026-09-05, after it had proved the tenant path
->   end to end.
-> - **Its index belongs to someone else.** Index 1 went to `eds` on 2026-09-07, so applying
->   this would build a second tenant on eds's VNIs, subnet and reverse zone.
-> - **Its substrate values are stale.**
->   - `node = "pve2"` predates ADR-0008's rename to `dv02hyp002p02`.
->   - `dns_update_server` names `10.20.99.30`, which CHG-0008 retired.
->   - The zone in the table below predates the site rename.
-> - **For a new tenant**, copy `examples/tenant/` from `deevnet-tenant-factory`. That example
->   is also the target of the rebuild-from-scratch drill.
->
-> The repository stays as the record of the first tenant, and is archived read-only.
+**The reference tenant.** Copy this repository to create a tenant, change the
+name, and apply. It is a working tenant, not a sample: the rebuild drill applies
+it and destroys it again.
 
-The `tdemo` tenant, as code. This repository **is** the tenant: its overlay
-network, its workloads and its DNS records are all declared here, and it can be
-rebuilt from scratch against the substrate without a substrate commit
-([ADR-0006](https://github.com/deevnet/deevnet-docs)).
+A tenant is its own repository ([ADR-0006][adr6]), and everything in it goes
+through one provider, `deevnet/deevnet` ([ADR-0015][adr15]).
 
-| | |
+[adr6]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0006-tenant-code-boundary/
+[adr15]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0015-tenant-onboarding-through-api/
+[adr7]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0007-terraform-state-custody/
+[adr4]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0004-tenant-dns-publication/
+
+## What a tenant holds
+
+One credential: its Deevnet API token.
+
+- **No index.** The API allocates it, and everything numbered - VNIs, subnet,
+  gateway, reverse zone, each workload's VMID, MAC and address - derives from it.
+- **No Proxmox credential.** The API builds the tenant's network and its VMs.
+- **No vault access.** The TSIG key and the state-store credential come back
+  from the API into this state, which is their authoritative copy.
+
+## Creating a tenant from this
+
+1. **Ask the substrate to admit a name.** The operator runs the admission and
+   sends back a **single-use enrollment token**, age-encrypted into your
+   repository, with the API's address and its CA certificate.
+2. **Copy this repository** and set `tenant_name` (in `terraform.tfvars` or by
+   editing the default). Change nothing else.
+3. **Apply with the enrollment token:**
+
+   ```bash
+   export DEEVNET_API_TOKEN=<enrollment token>
+   make init
+   make apply
+   ```
+
+   The first apply spends the enrollment token and receives the tenant's own.
+
+4. **Use the tenant's own token from then on:**
+
+   ```bash
+   export DEEVNET_API_TOKEN=$(terraform output -raw api_token)
+   ```
+
+5. **Move state into the store, if you want it** ([ADR-0007][adr7]):
+   `make state-backend` prints the block and the credentials, then
+   `terraform init -migrate-state`. A tenant that keeps its own custody skips
+   this; the store is offered, not required.
+
+## What is in here
+
+| File | |
 |---|---|
-| Index | 1 (allocated in the factory's `TENANTS.md`) |
-| Subnet | `10.20.129.0/24`, gateway `10.20.129.1` |
-| Zone | `tdemo.dvntm.deevnet.net` |
-| Module | `tenant-module-v1.0.0` |
+| `main.tf` | the tenant, one workload, and one published name |
+| `variables.tf` | the name, the workload's sizing, SSH keys |
+| `outputs.tf` | the subnet and names, and the credentials the substrate issued |
 
-## What the substrate issues, and what you author
+## Recovering after a substrate rebuild
 
-Onboarding is a substrate act, done once. Three things arrive from it and are
-**not** authored here:
+Apply again. If the API lost its registry, this state still proves who the
+tenant is and what it held: the same index comes back, with the same keys, and
+the plan is empty. Only if another tenant took the index in the meantime is a
+new one issued, and then the tenant's network and workloads are rebuilt on it
+(ADR-0015 §5).
 
-| Issued | Arrives as | Re-issue with |
-|---|---|---|
-| Fabric attachment | `fabric.auto.tfvars` | `make tenant-attachment TENANT=<this repo>` in the factory |
-| TSIG key | `TF_VAR_tsig_key_secret` | read from the inventory vault |
-| Tenant index | the value in `main.tf` | allocated in `TENANTS.md` |
+## Publishing names yourself
 
-Everything else is yours. Adding a record, changing one, rebuilding, destroying
-— all `terraform apply` here, touching no substrate repository.
+The workload's own name and anything declared here are published by the API.
+The tenant's TSIG key is still issued, so a tenant that would rather write
+records over RFC 2136 can: `terraform output -json dns_publication` has the
+server, zones and key ([ADR-0004][adr4]).
 
-## Running it
+## Until the provider is published
+
+The provider is not in the public registry yet, so `terraform init` needs it
+locally. Build it and put it where Terraform looks:
 
 ```bash
-export TF_VAR_tsig_key_secret=$(ansible-vault view \
-  ../ansible-inventory-deevnet/dvntm/group_vars/all/vault.yml \
-  | yq -r .vault_tenant_tsig_keys.tdemo)
-
-make init      # fetches the tagged module - needs GitHub and your ssh-agent
-make plan
-make apply
+git clone git@github.com:deevnet/terraform-provider-deevnet.git
+cd terraform-provider-deevnet && make build
+V=0.1.0; OS_ARCH=linux_amd64
+D=~/.terraform.d/plugins/registry.terraform.io/deevnet/deevnet/$V/$OS_ARCH
+mkdir -p $D && cp terraform-provider-deevnet $D/
 ```
 
-Proxmox credentials are rendered from the inventory vault by the targets
-themselves; nothing is stored here.
-
-## The module is pinned by tag
-
-`terraform init` vendors the module into `.terraform/modules/` and neither
-`plan` nor `apply` re-fetches it. **Moving to a newer module tag requires an
-explicit `terraform init -upgrade`** — so a repository that never re-inits stays
-on its old module indefinitely, quietly.
-
-Provider pins are committed (`.terraform.lock.hcl`). A module pinned by tag with
-providers left to float is half a pin.
-
-## State
-
-State is **not** in this repository. It lives in the substrate's state store,
-which is offered rather than mandated
-([ADR-0007](https://github.com/deevnet/deevnet-docs)) — a tenant may decline it
-and carry its own custody instead.
-
-Whichever applies: state is never hand-edited, and must not come to contain a
-secret. Prefer resources whose values can be re-derived over ones that generate
-a credential, because a generated credential lives in state permanently.
-
-Losing state costs a rebuild, not a loss — nothing here is irreplaceable, which
-is the same property that makes *rebuilt from code, not from a backup* true.
+The site's provider mirror replaces this step, and an offline `terraform init`
+is what that mirror is for (ADR-0012 §7).
