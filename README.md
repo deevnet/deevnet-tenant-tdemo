@@ -1,5 +1,20 @@
 # tdemo
 
+> **Retired. Do not apply this repository.**
+>
+> - **The tenant is gone.** `tdemo` was destroyed on 2026-09-05, after it had proved the tenant path
+>   end to end.
+> - **Its index belongs to someone else.** Index 1 went to `eds` on 2026-09-07, so applying
+>   this would build a second tenant on eds's VNIs, subnet and reverse zone.
+> - **Its substrate values are stale.**
+>   - `node = "pve2"` predates ADR-0008's rename to `dv02hyp002p02`.
+>   - `dns_update_server` names `10.20.99.30`, which CHG-0008 retired.
+>   - The zone in the table below predates the site rename.
+> - **For a new tenant**, copy `examples/tenant/` from `deevnet-tenant-factory`. That example
+>   is also the target of the rebuild-from-scratch drill.
+>
+> The repository stays as the record of the first tenant, and is archived read-only.
+
 The `tdemo` tenant, as code. This repository **is** the tenant: its overlay
 network, its workloads and its DNS records are all declared here, and it can be
 rebuilt from scratch against the substrate without a substrate commit
