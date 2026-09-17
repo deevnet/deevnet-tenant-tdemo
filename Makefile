@@ -1,68 +1,70 @@
-# Tenant: tdemo
+# tdemo - the reference tenant.
 #
-# This repository is the tenant. Everything that recurs - adding a record,
-# rebuilding, destroying - happens here and touches no substrate repository
-# (ADR-0004 section 5, ADR-0006).
-#
-# Two things arrive from the substrate at onboarding and are not authored here:
-#   fabric.auto.tfvars       make tenant-attachment TENANT=<this repo>
-#   TF_VAR_tsig_key_secret   read from the inventory vault, exported
-#
+# A tenant holds one credential: its Deevnet API token. There is no vault to
+# read, no Proxmox credential to render, and no index to allocate.
 .ONESHELL:
 SHELL := /usr/bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-IMAGE_FACTORY ?= $(CURDIR)/../deevnet-image-factory
-PVE_NODE      ?= pve2
-PVE_ENV       := $(IMAGE_FACTORY)/build/pve-env/$(PVE_NODE).env
+# The API and the certificate it is served with. Both are given to a tenant at
+# admission, with its enrollment token.
+export DEEVNET_API_ENDPOINT ?= https://api.mobile.deevnet.net:8080
+export DEEVNET_API_CACERT   ?= $(CURDIR)/site-ca.pem
 
 TF_APPROVE := $(if $(AUTO),-auto-approve,)
 
-.PHONY: help creds require-secret init plan apply destroy fmt validate
+.PHONY: help require-token init plan apply destroy state-backend fmt validate
 
 help:
-	@echo "tdemo - tenant repository"
+	@echo "tdemo - the reference tenant"
 	@echo
-	@echo "  init      terraform init (fetches the tagged module; needs GitHub + ssh-agent)"
-	@echo "  plan      terraform plan"
-	@echo "  apply     terraform apply         (AUTO=1 to skip approval)"
-	@echo "  destroy   terraform destroy       (AUTO=1 to skip approval)"
-	@echo "  validate  fmt check + validate"
+	@echo "  init           terraform init"
+	@echo "  plan           terraform plan"
+	@echo "  apply          terraform apply    (AUTO=1 to skip approval)"
+	@echo "  destroy        terraform destroy  (AUTO=1 to skip approval)"
+	@echo "  state-backend  print the backend block this tenant was issued"
+	@echo "  validate       fmt check + validate"
 	@echo
-	@echo "Requires TF_VAR_tsig_key_secret in the environment - see README."
+	@echo "Needs DEEVNET_API_TOKEN: the enrollment token on the first apply,"
+	@echo "then the api_token output. Endpoint: $(DEEVNET_API_ENDPOINT)"
 
-$(PVE_ENV):
-	$(MAKE) creds
-
-creds:
-	$(MAKE) -C "$(IMAGE_FACTORY)" $(PVE_NODE)-env
-
-# The TSIG secret is delivery-by-environment on purpose: it is a secret this
-# repository must never hold (secure-identity 4.3).
-require-secret:
-	@if [[ -z "$${TF_VAR_tsig_key_secret:-}" ]]; then
-		echo "TF_VAR_tsig_key_secret is not set." >&2
-		echo "It is issued by the substrate and lives in the inventory vault." >&2
-		echo "  export TF_VAR_tsig_key_secret=\$$(ansible-vault view \\" >&2
-		echo "    ../ansible-inventory-deevnet/mobile/group_vars/all/vault.yml \\" >&2
-		echo "    | yq -r .vault_tenant_tsig_keys.tdemo)" >&2
+# The one credential. It is never stored here: a tenant token belongs in the
+# state this repository does not hold, and the enrollment token is single use.
+require-token:
+	@if [[ -z "$${DEEVNET_API_TOKEN:-}" ]]; then
+		echo "DEEVNET_API_TOKEN is not set." >&2
+		echo "  First apply:  the enrollment token the substrate issued at admission." >&2
+		echo "  After that:   terraform output -raw api_token" >&2
 		exit 2
 	fi
 
-init: $(PVE_ENV)
+init:
 	terraform init
 
-plan: require-secret $(PVE_ENV)
-	source "$(PVE_ENV)"
+plan: require-token
 	terraform plan
 
-apply: require-secret $(PVE_ENV)
-	source "$(PVE_ENV)"
+apply: require-token
 	terraform apply $(TF_APPROVE)
 
-destroy: require-secret $(PVE_ENV)
-	source "$(PVE_ENV)"
+destroy: require-token
 	terraform destroy $(TF_APPROVE)
+
+# The state store is offered, not mandated (ADR-0007). Its credentials are
+# outputs of the tenant, so the backend is configured after the first apply.
+state-backend:
+	@terraform output -json state_backend | python3 -c '
+	import json, sys
+	d = json.load(sys.stdin)
+	print("# Uncomment the backend block in main.tf with these values, then:")
+	print("#   export AWS_ACCESS_KEY_ID=%s" % d["access_key"])
+	print("#   export AWS_SECRET_ACCESS_KEY=$(terraform output -json state_backend | jq -r .secret_key)")
+	print("#   terraform init -migrate-state")
+	print()
+	print("  bucket    = \"%s\"" % d["bucket"])
+	print("  key       = \"%s\"" % d["key"])
+	print("  endpoints = { s3 = \"%s\" }" % d["endpoint"])
+	'
 
 fmt:
 	terraform fmt -recursive
