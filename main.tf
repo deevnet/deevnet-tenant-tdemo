@@ -29,21 +29,21 @@ terraform {
   # A tenant that would rather keep its own custody simply leaves this out;
   # the offer is not a requirement.
   #
-  # backend "s3" {
-  #   bucket       = "tf-state"
-  #   key          = "tenants/tdemo/terraform.tfstate"
-  #   region       = "us-east-1"
-  #   endpoints    = { s3 = "http://tfstate.mobile.deevnet.net:9000" }
-  #   use_lockfile = true
-  #
-  #   # MinIO, not AWS.
-  #   skip_credentials_validation = true
-  #   skip_region_validation      = true
-  #   skip_requesting_account_id  = true
-  #   skip_metadata_api_check     = true
-  #   skip_s3_checksum            = true
-  #   use_path_style              = true
-  # }
+  backend "s3" {
+    bucket       = "tf-state"
+    key          = "tenants/tdemo/terraform.tfstate"
+    region       = "us-east-1"
+    endpoints    = { s3 = "http://tfstate.mobile.deevnet.net:9000" }
+    use_lockfile = true
+  
+    # MinIO, not AWS.
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+    skip_s3_checksum            = true
+    use_path_style              = true
+  }
 }
 
 # endpoint, token and ca_certificate come from DEEVNET_API_ENDPOINT,
