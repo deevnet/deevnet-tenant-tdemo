@@ -1,31 +1,30 @@
-# A tenant declares very little: its name, what its workloads run on, and the
-# keys that reach them.
-
 variable "tenant_name" {
   type        = string
-  default     = "tdemo"
   description = <<-EOT
-    The name the substrate admitted. 1-8 lowercase alphanumerics starting with
-    a letter: it is the SDN zone id, a DNS label and a state-store user.
-
-    A copy of this repository changes this and nothing else.
+    Exactly the name you were admitted with: 1-8 lowercase alphanumerics
+    starting with a letter. Set in terraform.tfvars (`make new NAME=...`).
   EOT
 }
 
-variable "vm_cores" {
-  type        = number
-  default     = 2
-  description = "Cores for the workload."
+variable "devices" {
+  type        = list(string)
+  default     = ["pico-1"]
+  description = "Your devices, by name. Each gets a registry entry and a broker account."
 }
 
-variable "vm_memory_mb" {
-  type        = number
-  default     = 2048
-  description = "Memory for the workload, in MB."
+variable "backend_workload" {
+  type        = bool
+  default     = true
+  description = "Run the backend on a Deevnet VM. False keeps it on your laptop or a Pi."
 }
 
 variable "ssh_keys" {
   type        = list(string)
   default     = []
-  description = "Public keys for the workload's cloud-init account. Public halves only."
+  description = <<-EOT
+    PUBLIC keys that may log in to the backend workload, e.g.
+    [file("~/.ssh/id_ed25519.pub")]. The private key stays on your laptop.
+    Keys are written when the workload is built; to change them later,
+    `terraform apply -replace='deevnet_workload.backend[0]'`.
+  EOT
 }

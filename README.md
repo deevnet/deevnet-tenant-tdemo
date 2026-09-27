@@ -1,90 +1,105 @@
 # tdemo
 
-**The reference tenant.** Copy this repository to create a tenant, change the
-name, and apply. It is a working tenant, not a sample: the rebuild drill applies
-it and destroys it again.
+**The reference tenant**, and a starting point for your own. This repository declares a whole
+small Deevnet tenant: a Wi-Fi key and a device, a backend workload you can log in to, and the
+broker accounts between them. It is the tenant guide's walkthrough as one configuration. It is
+also a live tenant, `tdemo`, so every line here is applied, not just shown.
 
-A tenant is its own repository ([ADR-0006][adr6]), and everything in it goes
-through one provider, `deevnet/deevnet` ([ADR-0015][adr15]).
+Everything goes through one provider, `deevnet/deevnet`, and one credential, your tenant's API
+token. The Deevnet docs' tenant guide explains each service; this README is the order to do things
+in.
 
-[adr6]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0006-tenant-code-boundary/
-[adr15]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0015-tenant-onboarding-through-api/
-[adr7]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0007-terraform-state-custody/
-[adr4]: https://deevnet.github.io/deevnet-docs/docs/architecture/decisions/0004-tenant-dns-publication/
+## Before you start
 
-## What a tenant holds
+- **Admitted.** The operator admits your tenant name and hands you three things: a single-use
+  **enrollment token**, your **`DVNTM-TD` Wi-Fi key**, and nothing else you need to keep secret.
+  The API's address and certificate are public.
+- **On `DVNTM-TD`**, with that key. It reaches the API, the state store, the broker, the log store,
+  Grafana and the tenant downloads.
+- **Tools** from the tenant downloads site, `https://downloads.mobile.deevnet.net:8443/`:
+  Terraform, then `install-provider.sh` for this provider, then
+  `tenant-check.sh --write-ca .` in this directory. That checks your laptop and writes
+  `site-ca.pem` here, which every command below uses.
 
-One credential: its Deevnet API token.
+## Make it yours
 
-- **No index.** The API allocates it, and everything numbered - VNIs, subnet,
-  gateway, reverse zone, each workload's VMID, MAC and address - derives from it.
-- **No Proxmox credential.** The API builds the tenant's network and its VMs.
-- **No vault access.** The TSIG key and the state-store credential come back
-  from the API into this state, which is their authoritative copy.
+```bash
+git clone https://github.com/deevnet/deevnet-tenant-tdemo deevnet-tenant-bench1
+cd deevnet-tenant-bench1 && rm -rf .git && git init    # your own history, not tdemo's
+make new NAME=bench1          # exactly the name you were admitted with
+```
 
-## Creating a tenant from this
+`make new` writes your name into `terraform.tfvars` and removes `backend.tf`, which points at
+tdemo's state. Nothing else in the repository names a tenant.
 
-1. **Ask the substrate to admit a name.** The operator runs the admission and
-   sends back a **single-use enrollment token**, age-encrypted into your
-   repository, with the API's address and its CA certificate.
-2. **Copy this repository** and set `tenant_name` (in `terraform.tfvars` or by
-   editing the default). Change nothing else.
-3. **Apply with the enrollment token:**
+Then decide what you want, in `terraform.tfvars`:
 
-   ```bash
-   export DEEVNET_API_TOKEN=<enrollment token>
-   make init
-   make apply
-   ```
+```hcl
+tenant_name      = "bench1"
+devices          = ["pico-1"]                        # one broker account and registry entry each
+backend_workload = true                              # false: run your backend on your laptop
+ssh_keys         = ["ssh-ed25519 AAAA... you@laptop"] # the PUBLIC half; the private key stays with you
+```
 
-   The first apply spends the enrollment token and receives the tenant's own.
+## First apply
 
-4. **Use the tenant's own token from then on:**
+```bash
+export DEEVNET_API_TOKEN=<your enrollment token>
+make init
+make apply
+export DEEVNET_API_TOKEN=$(terraform output -raw api_token)   # from now on
+```
 
-   ```bash
-   export DEEVNET_API_TOKEN=$(terraform output -raw api_token)
-   ```
+The first apply spends the enrollment token and receives your tenant's own. Put the last line in
+whatever sets up a shell for this project.
 
-5. **Move state into the store, if you want it** ([ADR-0007][adr7]):
-   `make state-backend` prints the block and the credentials, then
-   `terraform init -migrate-state`. A tenant that keeps its own custody skips
-   this; the store is offered, not required.
+**Your state now holds every credential your tenant was issued**, and for most of them it is the
+only copy. Never commit `terraform.tfstate`. Next step: move it into the state store.
+
+## Keep your state in the store
+
+```bash
+make state-backend
+```
+
+writes `backend.tf` (commit it) and `.backend.env` (the state store's credentials: secret,
+gitignored, keep a copy somewhere safe), then moves your local state into the store over TLS. From
+then on the Makefile loads `.backend.env` for you. On another laptop, clone the repository and copy
+`.backend.env` and `site-ca.pem` in; `make init` does the rest.
+
+The store is offered, not required. A tenant that keeps its own custody skips this step.
+
+## Use it
+
+| To | Run |
+|---|---|
+| Flash a device | `terraform output -json flash`: its Wi-Fi SSID and key, its broker user, password and topics |
+| Log in to the backend workload | `terraform output backend`: the address and the exact `ssh` line |
+| Run your app anywhere | `terraform output -raw kit_env > kit.env`: every endpoint, token and login it needs, by name |
+
+Your app reads its settings from `kit.env` and nothing else, so it runs the same on your laptop,
+on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant guide's
+"Convert a Tenant to a Pi Image").
+
+**Keys are written when the workload is built.** To change `ssh_keys` later,
+`terraform apply -replace='deevnet_workload.backend[0]'`, which rebuilds the VM.
 
 ## What is in here
 
 | File | |
 |---|---|
-| `main.tf` | the tenant, one workload, and one published name |
-| `variables.tf` | the name, the workload's sizing, SSH keys |
-| `outputs.tf` | the subnet and names, and the credentials the substrate issued |
+| `main.tf` | the tenant, the device side and the backend |
+| `variables.tf` | the name, the devices, the workload switch, SSH keys |
+| `terraform.tfvars` | this tenant's values: the only file that names it |
+| `outputs.tf` | `flash`, `backend`, `kit_env`, and the credentials the substrate issued |
+| `backend.tf` | where this tenant's state lives, written by `make state-backend` |
+| `Makefile` | the endpoint, the CA, the guards above, and `state-backend` |
 
-## Recovering after a substrate rebuild
+## When something is wrong
 
-Apply again. If the API lost its registry, this state still proves who the
-tenant is and what it held: the same index comes back, with the same keys, and
-the plan is empty. Only if another tenant took the index in the meantime is a
-new one issued, and then the tenant's network and workloads are rebuilt on it
-(ADR-0015 §5).
-
-## Publishing names yourself
-
-The workload's own name and anything declared here are published by the API.
-The tenant's TSIG key is still issued, so a tenant that would rather write
-records over RFC 2136 can: `terraform output -json dns_publication` has the
-server, zones and key ([ADR-0004][adr4]).
-
-## Until the provider is published
-
-The provider is not in the public registry yet, so `terraform init` needs it
-locally. Build it and put it where Terraform looks:
-
-```bash
-git clone git@github.com:deevnet/terraform-provider-deevnet.git
-cd terraform-provider-deevnet && make build
-V=0.1.0; OS_ARCH=linux_amd64
-D=~/.terraform.d/plugins/registry.terraform.io/deevnet/deevnet/$V/$OS_ARCH
-mkdir -p $D && cp terraform-provider-deevnet $D/
-```
-
-The site's provider mirror replaces this step, and an offline `terraform init`
-is what that mirror is for (ADR-0012 §7).
+- **`backend.tf belongs to another tenant`**: you copied without `make new`.
+- **`DEEVNET_API_TOKEN is not set`**: the export after the first apply is missing.
+- **`x509: certificate signed by unknown authority`**: `site-ca.pem` is missing or old;
+  `tenant-check.sh --write-ca .` again.
+- **Lost the state, or `.backend.env`**: the tenant guide's Recovery section. The operator can
+  restore some of it; what only your state held has to be reissued.
