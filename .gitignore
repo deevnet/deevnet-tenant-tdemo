@@ -6,8 +6,15 @@ terraform.tfstate.backup
 *.tfplan
 .terraform.tfstate.lock.info
 
-# Issued at admission, never committed.
+# The site CA: from tenant-check.sh --write-ca . or the operator. Not secret,
+# but it changes if the site's CA is rebuilt, so it is fetched, not committed.
 site-ca.pem
+
+# The state store's credentials, written by `make state-backend`. Secret.
+.backend.env
+
+# The app's environment, from `terraform output -raw kit_env`. Secret.
+kit.env
 
 # Provider pins ARE committed once the provider is published; until then the
 # lock file would name a local build.

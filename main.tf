@@ -1,14 +1,9 @@
-# tdemo - the reference tenant.
+# A Deevnet tenant: a Wi-Fi key and a device, a backend workload, and the
+# broker accounts between them - the walkthrough in the tenant guide, as one
+# configuration you can apply.
 #
-# Copy this repository to create a tenant: change the name here, and nothing
-# else. Everything a tenant is - its index, network numbering, DNS zone and
-# key, state-store credential and workload addressing - is issued by the
-# Deevnet API (ADR-0015), so there is no number to allocate and no substrate
-# credential to fetch.
-#
-# What the tenant holds is one token: the single-use enrollment token the
-# substrate issues at admission, and then its own token, which lands in this
-# state on the first apply.
+# To make your own tenant from this repository: `make new NAME=<your name>`,
+# then README.md. Nothing below names this tenant; terraform.tfvars does.
 
 terraform {
   required_version = ">= 1.5"
@@ -16,61 +11,66 @@ terraform {
   required_providers {
     deevnet = {
       source  = "deevnet/deevnet"
-      version = "~> 0.1"
+      version = "~> 0.5"
     }
   }
-
-  # The state store the substrate offers (ADR-0007). It is deliberately
-  # commented out: its credentials are outputs of the tenant below, so the
-  # first apply runs with local state and the backend is configured after it,
-  # with `terraform init -migrate-state` and the values from
-  # `make state-backend`.
-  #
-  # A tenant that would rather keep its own custody simply leaves this out;
-  # the offer is not a requirement.
-  #
-  backend "s3" {
-    bucket       = "tf-state"
-    key          = "tenants/tdemo/terraform.tfstate"
-    region       = "us-east-1"
-    endpoints    = { s3 = "https://tfstate.mobile.deevnet.net:9000" }
-    use_lockfile = true
-
-    # TLS from the site CA (CHG-0030): the same site-ca.pem the provider uses.
-    custom_ca_bundle = "site-ca.pem"
-
-    # MinIO, not AWS.
-    skip_credentials_validation = true
-    skip_region_validation      = true
-    skip_requesting_account_id  = true
-    skip_metadata_api_check     = true
-    skip_s3_checksum            = true
-    use_path_style              = true
-  }
+  # No backend here. Your first apply keeps state on your computer; after it,
+  # `make state-backend` writes backend.tf for the state store the substrate
+  # offers (ADR-0007), from your own tenant's outputs.
 }
 
-# endpoint, token and ca_certificate come from DEEVNET_API_ENDPOINT,
-# DEEVNET_API_TOKEN and DEEVNET_API_CACERT. The token is the enrollment token
-# on the first apply, and this tenant's own token afterwards.
+# DEEVNET_API_ENDPOINT, DEEVNET_API_TOKEN and DEEVNET_API_CACERT; the Makefile
+# sets the first and the last. The token is the enrollment token on the first
+# apply, and this tenant's own token afterwards.
 provider "deevnet" {}
 
 resource "deevnet_tenant" "this" {
   name = var.tenant_name
 }
 
-# One workload. The API picks its VMID, MAC and address from the tenant's
-# index; the tenant picks what it runs on.
-resource "deevnet_workload" "app" {
-  tenant    = deevnet_tenant.this.name
-  name      = "app"
-  cores     = var.vm_cores
-  memory_mb = var.vm_memory_mb
-  ssh_keys  = var.ssh_keys
+# --- Devices ---------------------------------------------------------------------
+
+# One Wi-Fi key for all of your devices.
+resource "deevnet_iot_wifi_key" "devices" {
+  tenant      = deevnet_tenant.this.name
+  name        = "devices"
+  trust_class = "iot"
 }
 
-# A name beside the workload's own, for the service rather than the machine.
-resource "deevnet_dns_record" "service" {
-  tenant  = deevnet_tenant.this.name
-  name    = "service"
-  address = deevnet_workload.app.address
+# Each device: an entry in your registry, and a broker account of its own.
+resource "deevnet_iot_device" "dev" {
+  for_each    = toset(var.devices)
+  tenant      = deevnet_tenant.this.name
+  name        = each.key
+  trust_class = "iot"
+}
+
+resource "deevnet_iot_broker_account" "dev" {
+  for_each  = toset(var.devices)
+  tenant    = deevnet_tenant.this.name
+  name      = each.key
+  device    = deevnet_iot_device.dev[each.key].name
+  publish   = ["sensors/${each.key}/telemetry", "log/${each.key}"]
+  subscribe = ["sensors/${each.key}/command"]
+}
+
+# --- The backend -------------------------------------------------------------------
+
+# Its broker account is the app's login everywhere it runs: on the workload,
+# on your computer, and later on a Pi of your own, with the same password.
+resource "deevnet_iot_broker_account" "backend" {
+  tenant    = deevnet_tenant.this.name
+  name      = "backend"
+  subscribe = ["sensors/+/telemetry"]
+  publish   = ["sensors/+/command"]
+}
+
+# A VM to run it on. Optional: a backend on your computer needs none, and a VM
+# nothing runs on only costs memory. You log in with the private half of a
+# key in ssh_keys; the substrate never sees it.
+resource "deevnet_workload" "backend" {
+  count    = var.backend_workload ? 1 : 0
+  tenant   = deevnet_tenant.this.name
+  name     = "backend"
+  ssh_keys = var.ssh_keys
 }
