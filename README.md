@@ -13,10 +13,17 @@ in.
 
 The tenant guide's *Before You Start* has the detail; in short:
 
-1. **Your development environment:** a macOS or Linux computer with Wi-Fi, with Terraform,
-   `install-provider.sh` for this provider, and `tenant-check.sh --write-ca .` run in this
-   directory. That checks your computer and writes `site-ca.pem` here, which every command below
-   uses. All of it is on the tenant downloads site, `https://downloads.mobile.deevnet.net:8443/`.
+1. **Your development environment:** a macOS or Linux computer with Wi-Fi, and Terraform. The
+   provider and two scripts come from the tenant downloads site. Once you are on `DVNTM-TD`, in a
+   working directory (your tenant repository is cloned inside it, below):
+
+   ```bash
+   curl -fsSLk -o site-ca.pem https://downloads.mobile.deevnet.net:8443/site-ca.pem
+   openssl x509 -in site-ca.pem -noout -fingerprint -sha256    # check it against Before You Start
+   curl -fsSL --cacert site-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/install-provider.sh
+   curl -fsSL --cacert site-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/tenant-check.sh
+   bash install-provider.sh
+   ```
 2. **Admitted.** The operator admits your tenant name and hands you a single-use **enrollment
    token** and your **`DVNTM-TD` Wi-Fi key**. Those two are secret; the API's address and
    certificate are public.
@@ -32,7 +39,12 @@ make new NAME=bench1          # exactly the name you were admitted with
 ```
 
 `make new` writes your name into `terraform.tfvars` and removes `backend.tf`, which points at
-tdemo's state. Nothing else in the repository names a tenant.
+tdemo's state. Nothing else in the repository names a tenant. Then check your computer and put the
+site CA in the repository, where every command below expects it:
+
+```bash
+bash ../tenant-check.sh --write-ca .
+```
 
 Then decide what you want, in `terraform.tfvars`:
 
@@ -40,7 +52,13 @@ Then decide what you want, in `terraform.tfvars`:
 tenant_name      = "bench1"
 devices          = ["pico-1"]                        # one broker account and registry entry each
 backend_workload = true                              # false: run your backend on your computer
-ssh_keys         = ["ssh-ed25519 AAAA... you@computer"] # the PUBLIC half; the private key stays with you
+ssh_keys         = ["ssh-ed25519 AAAA... you@computer"] # a LIST, even of one; the PUBLIC half only
+```
+
+The quickest way to add your key, brackets and all:
+
+```bash
+echo "ssh_keys = [\"$(cat ~/.ssh/id_ed25519.pub)\"]" >> terraform.tfvars
 ```
 
 ## First apply
