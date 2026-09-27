@@ -64,6 +64,7 @@ state-backend:
 	print("  bucket    = \"%s\"" % d["bucket"])
 	print("  key       = \"%s\"" % d["key"])
 	print("  endpoints = { s3 = \"%s\" }" % d["endpoint"])
+	print("  custom_ca_bundle = \"site-ca.pem\"")
 	'
 
 fmt:

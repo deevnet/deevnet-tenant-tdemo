@@ -33,9 +33,14 @@ terraform {
     bucket       = "tf-state"
     key          = "tenants/tdemo/terraform.tfstate"
     region       = "us-east-1"
-    endpoints    = { s3 = "http://tfstate.mobile.deevnet.net:9000" }
+    endpoints    = { s3 = "https://tfstate.mobile.deevnet.net:9000" }
     use_lockfile = true
-  
+
+    # The state store is TLS from the site CA (CHG-0030), the same
+    # site-ca.pem the provider verifies the API with. Relative to where
+    # terraform runs: this directory.
+    custom_ca_bundle = "site-ca.pem"
+
     # MinIO, not AWS.
     skip_credentials_validation = true
     skip_region_validation      = true
