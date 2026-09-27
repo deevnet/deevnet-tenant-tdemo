@@ -11,15 +11,17 @@ in.
 
 ## Before you start
 
-- **Admitted.** The operator admits your tenant name and hands you three things: a single-use
-  **enrollment token**, your **`DVNTM-TD` Wi-Fi key**, and nothing else you need to keep secret.
-  The API's address and certificate are public.
-- **On `DVNTM-TD`**, with that key. It reaches the API, the state store, the broker, the log store,
-  Grafana and the tenant downloads.
-- **Tools** from the tenant downloads site, `https://downloads.mobile.deevnet.net:8443/`:
-  Terraform, then `install-provider.sh` for this provider, then
-  `tenant-check.sh --write-ca .` in this directory. That checks your laptop and writes
-  `site-ca.pem` here, which every command below uses.
+The tenant guide's *Before You Start* has the detail; in short:
+
+1. **Your development environment:** a macOS or Linux computer with Wi-Fi, with Terraform,
+   `install-provider.sh` for this provider, and `tenant-check.sh --write-ca .` run in this
+   directory. That checks your computer and writes `site-ca.pem` here, which every command below
+   uses. All of it is on the tenant downloads site, `https://downloads.mobile.deevnet.net:8443/`.
+2. **Admitted.** The operator admits your tenant name and hands you a single-use **enrollment
+   token** and your **`DVNTM-TD` Wi-Fi key**. Those two are secret; the API's address and
+   certificate are public.
+3. **On `DVNTM-TD`**, with that key. Tenants connect over Wi-Fi only. It reaches the API, the
+   state store, the broker, the log store, Grafana and the tenant downloads.
 
 ## Make it yours
 
@@ -37,8 +39,8 @@ Then decide what you want, in `terraform.tfvars`:
 ```hcl
 tenant_name      = "bench1"
 devices          = ["pico-1"]                        # one broker account and registry entry each
-backend_workload = true                              # false: run your backend on your laptop
-ssh_keys         = ["ssh-ed25519 AAAA... you@laptop"] # the PUBLIC half; the private key stays with you
+backend_workload = true                              # false: run your backend on your computer
+ssh_keys         = ["ssh-ed25519 AAAA... you@computer"] # the PUBLIC half; the private key stays with you
 ```
 
 ## First apply
@@ -64,7 +66,7 @@ make state-backend
 
 writes `backend.tf` (commit it) and `.backend.env` (the state store's credentials: secret,
 gitignored, keep a copy somewhere safe), then moves your local state into the store over TLS. From
-then on the Makefile loads `.backend.env` for you. On another laptop, clone the repository and copy
+then on the Makefile loads `.backend.env` for you. On another computer, clone the repository and copy
 `.backend.env` and `site-ca.pem` in; `make init` does the rest.
 
 The store is offered, not required. A tenant that keeps its own custody skips this step.
@@ -77,7 +79,7 @@ The store is offered, not required. A tenant that keeps its own custody skips th
 | Log in to the backend workload | `terraform output backend`: the address and the exact `ssh` line |
 | Run your app anywhere | `terraform output -raw kit_env > kit.env`: every endpoint, token and login it needs, by name |
 
-Your app reads its settings from `kit.env` and nothing else, so it runs the same on your laptop,
+Your app reads its settings from `kit.env` and nothing else, so it runs the same on your computer,
 on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant guide's
 "Convert a Tenant to a Pi Image").
 

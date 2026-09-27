@@ -15,7 +15,7 @@ variable "devices" {
 variable "backend_workload" {
   type        = bool
   default     = true
-  description = "Run the backend on a Deevnet VM. False keeps it on your laptop or a Pi."
+  description = "Run the backend on a Deevnet VM. False keeps it on your computer or a Pi."
 }
 
 variable "ssh_keys" {
@@ -23,7 +23,7 @@ variable "ssh_keys" {
   default     = []
   description = <<-EOT
     PUBLIC keys that may log in to the backend workload, e.g.
-    [file("~/.ssh/id_ed25519.pub")]. The private key stays on your laptop.
+    [file("~/.ssh/id_ed25519.pub")]. The private key stays on your computer.
     Keys are written when the workload is built; to change them later,
     `terraform apply -replace='deevnet_workload.backend[0]'`.
   EOT

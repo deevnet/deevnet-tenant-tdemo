@@ -14,7 +14,7 @@ terraform {
       version = "~> 0.5"
     }
   }
-  # No backend here. Your first apply keeps state on your laptop; after it,
+  # No backend here. Your first apply keeps state on your computer; after it,
   # `make state-backend` writes backend.tf for the state store the substrate
   # offers (ADR-0007), from your own tenant's outputs.
 }
@@ -57,7 +57,7 @@ resource "deevnet_iot_broker_account" "dev" {
 # --- The backend -------------------------------------------------------------------
 
 # Its broker account is the app's login everywhere it runs: on the workload,
-# on your laptop, and later on a Pi of your own, with the same password.
+# on your computer, and later on a Pi of your own, with the same password.
 resource "deevnet_iot_broker_account" "backend" {
   tenant    = deevnet_tenant.this.name
   name      = "backend"
@@ -65,7 +65,7 @@ resource "deevnet_iot_broker_account" "backend" {
   publish   = ["sensors/+/command"]
 }
 
-# A VM to run it on. Optional: a backend on your laptop needs none, and a VM
+# A VM to run it on. Optional: a backend on your computer needs none, and a VM
 # nothing runs on only costs memory. You log in with the private half of a
 # key in ssh_keys; the substrate never sees it.
 resource "deevnet_workload" "backend" {
