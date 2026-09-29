@@ -18,7 +18,7 @@ The tenant guide's *Before You Start* has the detail; in short:
    working directory (your tenant repository is cloned inside it, below):
 
    ```bash
-   curl -fsSLk -o site-ca.pem https://downloads.mobile.deevnet.net:8443/site-ca.pem
+   curl -fsSLk -o site-ca.pem https://downloads.mobile.deevnet.net:8443/deevnet-mobile-ca.pem
    openssl x509 -in site-ca.pem -noout -fingerprint -sha256    # check it against Before You Start
    curl -fsSL --cacert site-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/install-provider.sh
    curl -fsSL --cacert site-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/tenant-check.sh
