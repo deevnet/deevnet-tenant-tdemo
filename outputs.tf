@@ -34,7 +34,7 @@ output "kit_env" {
     DEEVNET_TENANT=${deevnet_tenant.this.name}
     MQTT_HOST=mqtt.mobile.deevnet.net
     MQTT_PORT=8883
-    MQTT_CA_FILE=site-ca.pem
+    MQTT_CA_FILE=deevnet-mobile-root-ca.pem
     MQTT_USERNAME=${deevnet_iot_broker_account.backend.username}
     MQTT_PASSWORD=${deevnet_iot_broker_account.backend.password}
     LOG_ENDPOINT=${deevnet_tenant.this.log_endpoint}
@@ -46,7 +46,7 @@ output "kit_env" {
     GRAFANA_AUTH=${deevnet_tenant.this.dashboard_username}:${deevnet_tenant.this.dashboard_password}
     GRAFANA_ORG_ID=${deevnet_tenant.this.dashboard_org_id}
     TF_VAR_grafana_org_id=${deevnet_tenant.this.dashboard_org_id}
-    GRAFANA_CA_CERT=site-ca.pem
+    GRAFANA_CA_CERT=deevnet-mobile-root-ca.pem
   EOT
 }
 
