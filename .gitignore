@@ -8,6 +8,7 @@ terraform.tfstate.backup
 
 # The site CA: from tenant-check.sh --write-ca . or the operator. Not secret,
 # but it changes if the site's CA is rebuilt, so it is fetched, not committed.
+deevnet-mobile-root-ca.pem
 site-ca.pem
 
 # The state store's credentials, written by `make state-backend`. Secret.
