@@ -18,10 +18,10 @@ The tenant guide's *Before You Start* has the detail; in short:
    working directory (your tenant repository is cloned inside it, below):
 
    ```bash
-   curl -fsSLk -O https://downloads.mobile.deevnet.net:8443/deevnet-mobile-root-ca.pem
-   openssl x509 -in deevnet-mobile-root-ca.pem -noout -fingerprint -sha256    # check it against Before You Start
-   curl -fsSL --cacert deevnet-mobile-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/install-provider.sh
-   curl -fsSL --cacert deevnet-mobile-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/tenant-check.sh
+   curl -fsSLk -O https://downloads.mobile.deevnet.net:8443/deevnet-root-ca.pem
+   openssl x509 -in deevnet-root-ca.pem -noout -fingerprint -sha256    # check it against Before You Start
+   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/install-provider.sh
+   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/tenant-check.sh
    bash install-provider.sh
    ```
 2. **Admitted.** The operator admits your tenant name and hands you a single-use **enrollment
@@ -40,7 +40,7 @@ make new NAME=bench1          # exactly the name you were admitted with
 
 `make new` writes your name into `terraform.tfvars` and removes `backend.tf`, which points at
 tdemo's state. Nothing else in the repository names a tenant. Then check your computer and put the
-site CA in the repository, where every command below expects it:
+Deevnet Root CA in the repository, where every command below expects it:
 
 ```bash
 bash ../tenant-check.sh --write-ca .
@@ -85,7 +85,7 @@ make state-backend
 writes `backend.tf` (commit it) and `.backend.env` (the state store's credentials: secret,
 gitignored, keep a copy somewhere safe), then moves your local state into the store over TLS. From
 then on the Makefile loads `.backend.env` for you. On another computer, clone the repository and copy
-`.backend.env` and `deevnet-mobile-root-ca.pem` in; `make init` does the rest.
+`.backend.env` and `deevnet-root-ca.pem` in; `make init` does the rest.
 
 The store is offered, not required. A tenant that keeps its own custody skips this step.
 
@@ -119,7 +119,7 @@ on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant
 
 - **`backend.tf belongs to another tenant`**: you copied without `make new`.
 - **`DEEVNET_API_TOKEN is not set`**: the export after the first apply is missing.
-- **`x509: certificate signed by unknown authority`**: `deevnet-mobile-root-ca.pem` is missing or old;
+- **`x509: certificate signed by unknown authority`**: `deevnet-root-ca.pem` is missing or old;
   `tenant-check.sh --write-ca .` again.
 - **`Backend configuration changed`** after the site root's rename (CHG-0031): `terraform init
   -reconfigure`, once. The state does not move; only the CA file's name in `backend.tf` did.
