@@ -6,8 +6,9 @@ terraform.tfstate.backup
 *.tfplan
 .terraform.tfstate.lock.info
 
-# The site CA: from tenant-check.sh --write-ca . or the operator. Not secret,
+# The Deevnet Root CA: from tenant-check.sh --write-ca . or the operator. Not secret,
 # but it changes if the site's CA is rebuilt, so it is fetched, not committed.
+deevnet-root-ca.pem
 deevnet-mobile-root-ca.pem
 site-ca.pem
 
