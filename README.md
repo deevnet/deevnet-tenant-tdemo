@@ -18,10 +18,10 @@ The tenant guide's *Before You Start* has the detail; in short:
    working directory (your tenant repository is cloned inside it, below):
 
    ```bash
-   curl -fsSLk -O https://downloads.mobile.deevnet.net:8443/deevnet-root-ca.pem
+   curl -fsSLk -O https://downloads.mobile.deevnet.net/deevnet-root-ca.pem
    openssl x509 -in deevnet-root-ca.pem -noout -fingerprint -sha256    # check it against Before You Start
-   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/install-provider.sh
-   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net:8443/scripts/tenant-check.sh
+   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/install-provider.sh
+   curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/tenant-check.sh
    bash install-provider.sh
    ```
 2. **Admitted.** The operator admits your tenant name and hands you a single-use **enrollment
