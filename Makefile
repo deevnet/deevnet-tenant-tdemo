@@ -8,7 +8,7 @@ SHELL := /bin/bash
 
 # The API and the certificate it is served with. deevnet-root-ca.pem comes from
 # tenant-check.sh --write-ca . (or the operator), and is gitignored.
-export DEEVNET_API_ENDPOINT ?= https://api.mobile.deevnet.net:8080
+export DEEVNET_API_ENDPOINT ?= https://api.mobile.deevnet.net
 export DEEVNET_API_CACERT   ?= $(CURDIR)/deevnet-root-ca.pem
 
 # The state store's credentials, once `make state-backend` has written them.

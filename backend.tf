@@ -5,7 +5,7 @@ terraform {
     bucket           = "tf-state"
     key              = "tenants/tdemo/terraform.tfstate"
     region           = "us-east-1"
-    endpoints        = { s3 = "https://tfstate.mobile.deevnet.net:9000" }
+    endpoints        = { s3 = "https://tfstate.mobile.deevnet.net" }
     custom_ca_bundle = "deevnet-root-ca.pem"
     use_lockfile     = true
 
