@@ -13,9 +13,9 @@ in.
 
 The tenant guide's *Before You Start* has the detail; in short:
 
-1. **Your development environment:** a macOS or Linux computer with Wi-Fi, and Terraform. The
-   provider and two scripts come from the tenant downloads site. Once you are on `DVNTM-TD`, in a
-   working directory (your tenant repository is cloned inside it, below):
+1. **Your development environment:** a macOS, Linux or Windows computer with Wi-Fi, and Terraform.
+   The provider and two scripts come from the tenant downloads site. Once you are on `DVNTM-TD`, in
+   a working directory (your tenant repository is cloned inside it, below):
 
    ```bash
    curl -fsSLk -O https://downloads.mobile.deevnet.net/deevnet-root-ca.pem
@@ -23,6 +23,17 @@ The tenant guide's *Before You Start* has the detail; in short:
    curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/install-provider.sh
    curl -fsSL --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/tenant-check.sh
    bash install-provider.sh
+   ```
+
+   On Windows, in PowerShell (or under WSL2, the lines above as they are):
+
+   ```powershell
+   curl.exe -fsSLk -O https://downloads.mobile.deevnet.net/deevnet-root-ca.pem
+   $c = [Security.Cryptography.X509Certificates.X509Certificate2]::new("$PWD\deevnet-root-ca.pem")
+   [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($c.RawData))   # check it
+   curl.exe -fsSL --ssl-revoke-best-effort --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/install-provider.ps1
+   curl.exe -fsSL --ssl-revoke-best-effort --cacert deevnet-root-ca.pem -O https://downloads.mobile.deevnet.net/scripts/tenant-check.ps1
+   powershell -ExecutionPolicy Bypass -File install-provider.ps1
    ```
 2. **Admitted.** The operator admits your tenant name and hands you a single-use **enrollment
    token** and your **`DVNTM-TD` Wi-Fi key**. Those two are secret; the API's address and
@@ -46,6 +57,16 @@ Deevnet Root CA in the repository, where every command below expects it:
 bash ../tenant-check.sh --write-ca .
 ```
 
+**On Windows**, `tenant.ps1` does what the Makefile does, with the same guards, and needs no make,
+bash or Python. Every `make <target>` below is `.\tenant.ps1 <target>`; `NAME=x` is `-Name x` and
+`AUTO=1` is `-Auto`. If PowerShell refuses to run scripts, prefix each one with
+`powershell -ExecutionPolicy Bypass -File`.
+
+```powershell
+.\tenant.ps1 new -Name bench1
+powershell -ExecutionPolicy Bypass -File ..\tenant-check.ps1 -WriteCa .
+```
+
 Then decide what you want, in `terraform.tfvars`:
 
 ```hcl
@@ -61,6 +82,10 @@ The quickest way to add your key, brackets and all:
 echo "ssh_keys = [\"$(cat ~/.ssh/id_ed25519.pub)\"]" >> terraform.tfvars
 ```
 
+```powershell
+Add-Content terraform.tfvars "ssh_keys = [`"$((Get-Content ~\.ssh\id_ed25519.pub).Trim())`"]"
+```
+
 ## First apply
 
 ```bash
@@ -68,6 +93,13 @@ export DEEVNET_API_TOKEN=<your enrollment token>
 make init
 make apply
 export DEEVNET_API_TOKEN=$(terraform output -raw api_token)   # from now on
+```
+
+```powershell
+$env:DEEVNET_API_TOKEN = '<your enrollment token>'
+.\tenant.ps1 init
+.\tenant.ps1 apply
+$env:DEEVNET_API_TOKEN = terraform output -raw api_token        # from now on
 ```
 
 The first apply spends the enrollment token and receives your tenant's own. Put the last line in
@@ -79,11 +111,12 @@ only copy. Never commit `terraform.tfstate`. Next step: move it into the state s
 ## Keep your state in the store
 
 ```bash
-make state-backend
+make state-backend          # Windows: .\tenant.ps1 state-backend
 ```
 
 writes `backend.tf` (commit it) and `.backend.env` (the state store's credentials: secret,
-gitignored, keep a copy somewhere safe), then moves your local state into the store over TLS. From
+gitignored, readable by you alone, keep a copy somewhere safe), then moves your local state into
+the store over TLS. Both `make` and `tenant.ps1` read the same `.backend.env`. From
 then on the Makefile loads `.backend.env` for you. On another computer, clone the repository and copy
 `.backend.env` and `deevnet-root-ca.pem` in; `make init` does the rest.
 
@@ -96,6 +129,9 @@ The store is offered, not required. A tenant that keeps its own custody skips th
 | Flash a device | `terraform output -json flash`: its Wi-Fi SSID and key, its broker user, password and topics |
 | Log in to the backend workload | `terraform output backend`: the address and the exact `ssh` line |
 | Run your app anywhere | `terraform output -raw kit_env > kit.env`: every endpoint, token and login it needs, by name |
+
+In Windows PowerShell 5.1, `>` writes UTF-16, which nothing reading `kit.env` expects. Let `cmd`
+redirect it, byte for byte: `cmd /c "terraform output -raw kit_env > kit.env"`.
 
 Your app reads its settings from `kit.env` and nothing else, so it runs the same on your computer,
 on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant guide's
@@ -114,13 +150,17 @@ on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant
 | `outputs.tf` | `flash`, `backend`, `kit_env`, and the credentials the substrate issued |
 | `backend.tf` | where this tenant's state lives, written by `make state-backend` |
 | `Makefile` | the endpoint, the CA, the guards above, and `state-backend` |
+| `tenant.ps1` | the Makefile for Windows PowerShell: the same targets and guards |
 
 ## When something is wrong
 
 - **`backend.tf belongs to another tenant`**: you copied without `make new`.
 - **`DEEVNET_API_TOKEN is not set`**: the export after the first apply is missing.
 - **`x509: certificate signed by unknown authority`**: `deevnet-root-ca.pem` is missing or old;
-  `tenant-check.sh --write-ca .` again.
+  `tenant-check.sh --write-ca .` (or `tenant-check.ps1 -WriteCa .`) again.
+- **`$'\r': command not found` or `missing separator`** under WSL2 or Git Bash: the repository was
+  checked out with Windows line endings. Clone inside WSL, or `git add --renormalize .` after
+  pulling the `.gitattributes`.
 - **`Backend configuration changed`** after the site root's rename (CHG-0031): `terraform init
   -reconfigure`, once. The state does not move; only the CA file's name in `backend.tf` did.
 - **Lost the state, or `.backend.env`**: the tenant guide's Recovery section. The operator can

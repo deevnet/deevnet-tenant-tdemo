@@ -1,4 +1,5 @@
 # A Deevnet tenant. `make help` for the targets; README.md for the steps.
+# Windows PowerShell has tenant.ps1, the same targets and guards: keep the two alike.
 #
 # A tenant holds one credential: its Deevnet API token. There is no vault to
 # read, no Proxmox credential to render, and no index to allocate.

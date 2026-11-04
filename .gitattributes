@@ -1,0 +1,5 @@
+# One line ending everywhere, LF, whatever the checkout: a Windows clone with
+# core.autocrlf would otherwise write CRLF into the Makefile and scripts, which
+# make and bash misread. PowerShell and Terraform read LF as they are.
+* text=auto eol=lf
+*.pem text eol=lf
