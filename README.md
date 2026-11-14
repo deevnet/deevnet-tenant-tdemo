@@ -140,6 +140,24 @@ on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant
 **Keys are written when the workload is built.** To change `ssh_keys` later,
 `terraform apply -replace='deevnet_workload.backend[0]'`, which rebuilds the VM.
 
+## Runtime secrets (optional)
+
+**A secret your backend needs, such as a third-party API key, can live in your own OpenBao
+namespace instead of in `kit.env`.** Copy `secrets.tf.example` to `secrets.tf` and follow its
+header. You then get:
+- rotation with an apply and no push;
+- one workload cut off by deleting its reader;
+- a record of every read.
+
+It needs Terraform 1.11 or later and provider 0.10 or later. The value never reaches your plan
+or state. Your repository keeps the real copy, encrypted.
+
+On the workload, append the reader's credential to `kit.env`
+(`terraform output -raw secrets_env >> kit.env`). Then run your app with
+`scripts/run-with-secrets.sh kit.env ./your-app`. That runs OpenBao Agent, which puts each secret
+into your app's environment, never on disk, and restarts the app when a secret changes. The
+credential works only from the workload's own address.
+
 ## What is in here
 
 | File | |
@@ -148,6 +166,8 @@ on the workload, and, with a Pi's own `kit.env`, on a Pi of your own (the tenant
 | `variables.tf` | the name, the devices, the workload switch, SSH keys |
 | `terraform.tfvars` | this tenant's values: the only file that names it |
 | `outputs.tf` | `flash`, `backend`, `kit_env`, and the credentials the substrate issued |
+| `secrets.tf.example` | optional runtime secrets in your OpenBao namespace; copy to `secrets.tf` |
+| `scripts/run-with-secrets.sh` | runs your app under OpenBao Agent with its secrets in its environment |
 | `backend.tf` | where this tenant's state lives, written by `make state-backend` |
 | `Makefile` | the endpoint, the CA, the guards above, and `state-backend` |
 | `tenant.ps1` | the Makefile for Windows PowerShell: the same targets and guards |
