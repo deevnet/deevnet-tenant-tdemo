@@ -75,3 +75,14 @@ output "dns_publication" {
     key_secret    = deevnet_tenant.this.tsig_secret
   }
 }
+
+output "files_bucket" {
+  description = "The files bucket: where it is, and its read-write and read-only keys."
+  sensitive   = true
+  value = {
+    endpoint = deevnet_bucket.files.endpoint
+    bucket   = deevnet_bucket.files.bucket
+    writer   = { access_key = deevnet_bucket.files.access_key, secret_key = deevnet_bucket.files.secret_key }
+    reader   = { access_key = deevnet_bucket_key.files_reader.access_key, secret_key = deevnet_bucket_key.files_reader.secret_key }
+  }
+}
