@@ -11,7 +11,7 @@ terraform {
   required_providers {
     deevnet = {
       source  = "deevnet/deevnet"
-      version = "~> 0.5"
+      version = "~> 0.10"
     }
   }
   # No backend here. Your first apply keeps state on your computer; after it,

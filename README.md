@@ -156,7 +156,7 @@ On the workload, append the reader's credential to `kit.env`
 (`terraform output -raw secrets_env >> kit.env`). Then run your app with
 `scripts/run-with-secrets.sh kit.env ./your-app`. That runs OpenBao Agent, which puts each secret
 into your app's environment, never on disk, and restarts the app when a secret changes. The
-credential works only from the workload's own address.
+credential works only from inside the tenant fabric; keep it as you keep your broker password.
 
 ## What is in here
 
