@@ -48,6 +48,9 @@ output "kit_env" {
     GRAFANA_ORG_ID=${deevnet_tenant.this.dashboard_org_id}
     TF_VAR_grafana_org_id=${deevnet_tenant.this.dashboard_org_id}
     GRAFANA_CA_CERT=deevnet-root-ca.pem
+    NOTIFY_URL=${deevnet_tenant.this.notify_endpoint}
+    NOTIFY_USERNAME=${deevnet_tenant.this.notify_username}
+    NOTIFY_PASSWORD=${deevnet_tenant.this.notify_password}
   EOT
 }
 
