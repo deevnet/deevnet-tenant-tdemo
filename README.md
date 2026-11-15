@@ -130,8 +130,9 @@ The store is offered, not required. A tenant that keeps its own custody skips th
 | Log in to the backend workload | `terraform output backend`: the address and the exact `ssh` line |
 | Run your app anywhere | `terraform output -raw kit_env > kit.env`: every endpoint, token and login it needs, by name |
 | Push a metric and read it back | `scripts/metrics-check.sh kit.env`, on your computer or the workload: it also checks each token does only its own job |
+| Get alerts on your phone | `terraform output -json notify`: the ntfy server, login and topics for the ntfy app (Android, on site) |
 
-`METRICS_ENDPOINT` needs provider 0.12 or later. A copy initialized with an earlier one runs
+`METRICS_ENDPOINT` needs provider 0.12 or later, and `alerts.tf` 0.13. A copy initialized with an earlier one runs
 `terraform init -upgrade` once, then `terraform apply` to record the new attribute.
 
 In Windows PowerShell 5.1, `>` writes UTF-16, which nothing reading `kit.env` expects. Let `cmd`
@@ -170,6 +171,7 @@ credential works only from inside the tenant fabric; keep it as you keep your br
 | `variables.tf` | the name, the devices, the workload switch, SSH keys |
 | `terraform.tfvars` | this tenant's values: the only file that names it |
 | `outputs.tf` | `flash`, `backend`, `kit_env`, and the credentials the substrate issued |
+| `alerts.tf` | two alert rule groups, one over the backend's metrics and one over the devices' logs |
 | `secrets.tf.example` | optional runtime secrets in your OpenBao namespace; copy to `secrets.tf` |
 | `scripts/metrics-check.sh` | pushes a metric with the ingest token, reads it back with the read token, and tries what neither may do |
 | `scripts/run-with-secrets.sh` | runs your app under OpenBao Agent with its secrets in its environment |
