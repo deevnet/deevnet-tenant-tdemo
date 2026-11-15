@@ -51,6 +51,17 @@ output "kit_env" {
   EOT
 }
 
+# What the phone's ntfy app needs: the server, the login, and the topics.
+output "notify" {
+  sensitive = true
+  value = {
+    server   = deevnet_tenant.this.notify_endpoint
+    username = deevnet_tenant.this.notify_username
+    password = deevnet_tenant.this.notify_password
+    topics   = [deevnet_alert_rule_group.backend.ntfy_topic, deevnet_alert_rule_group.devices.ntfy_topic]
+  }
+}
+
 # What `make state-backend` writes backend.tf and .backend.env from.
 output "state_backend" {
   sensitive = true
