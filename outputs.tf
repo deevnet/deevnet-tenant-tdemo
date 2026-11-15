@@ -42,6 +42,7 @@ output "kit_env" {
     LOG_READ_TOKEN=${deevnet_tenant.this.log_read_token}
     LOG_SELECT_HEADER=${deevnet_tenant.this.log_select_header}
     LOG_DEVICE_PARTITION=${deevnet_tenant.this.index}-2
+    METRICS_ENDPOINT=${deevnet_tenant.this.metrics_endpoint}
     GRAFANA_URL=${deevnet_tenant.this.dashboard_url}
     GRAFANA_AUTH=${deevnet_tenant.this.dashboard_username}:${deevnet_tenant.this.dashboard_password}
     GRAFANA_ORG_ID=${deevnet_tenant.this.dashboard_org_id}
