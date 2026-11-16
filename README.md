@@ -122,6 +122,24 @@ then on the Makefile loads `.backend.env` for you. On another computer, clone th
 
 The store is offered, not required. A tenant that keeps its own custody skips this step.
 
+**A `terraform` command you type yourself needs the same settings in your shell**, or it fails with
+"No valid credential sources". `.backend.env` reaches the state store, which every command reads;
+a `plan` or `apply` also reaches the API:
+
+```bash
+set -a; . ./.backend.env; set +a
+export DEEVNET_API_ENDPOINT=https://api.mobile.deevnet.net
+export DEEVNET_API_CACERT=$PWD/deevnet-root-ca.pem
+export DEEVNET_API_TOKEN=$(terraform output -raw api_token)
+```
+
+```powershell
+Get-Content .backend.env | ForEach-Object { if ($_ -match '^(\w+)=(.*)$') { Set-Item "env:$($Matches[1])" $Matches[2] } }
+$env:DEEVNET_API_ENDPOINT = 'https://api.mobile.deevnet.net'
+$env:DEEVNET_API_CACERT = "$PWD\deevnet-root-ca.pem"
+$env:DEEVNET_API_TOKEN = terraform output -raw api_token
+```
+
 ## Use it
 
 | To | Run |
