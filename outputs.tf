@@ -48,6 +48,14 @@ output "kit_env" {
     GRAFANA_ORG_ID=${deevnet_tenant.this.dashboard_org_id}
     TF_VAR_grafana_org_id=${deevnet_tenant.this.dashboard_org_id}
     GRAFANA_CA_CERT=deevnet-root-ca.pem
+    NOTIFY_URL=${deevnet_tenant.this.notify_endpoint}
+    NOTIFY_USERNAME=${deevnet_tenant.this.notify_username}
+    NOTIFY_PASSWORD=${deevnet_tenant.this.notify_password}
+    S3_ENDPOINT=${deevnet_bucket.files.endpoint}
+    S3_CA_FILE=deevnet-root-ca.pem
+    BUCKET_FILES=${deevnet_bucket.files.bucket}
+    BUCKET_FILES_ACCESS_KEY=${deevnet_bucket.files.access_key}
+    BUCKET_FILES_SECRET_KEY=${deevnet_bucket.files.secret_key}
   EOT
 }
 

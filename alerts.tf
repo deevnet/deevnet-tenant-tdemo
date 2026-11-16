@@ -38,3 +38,27 @@ resource "deevnet_alert_rule_group" "devices" {
     annotations = { summary = "{{ $labels.device }} logged {{ $value }} errors" }
   }
 }
+
+# The same groups as JSON, for a take-home Pi (CHG-0072):
+#   terraform output -json alert_rules > rules.json
+#   sudo deevnet-kit alerts import rules.json
+# The shape is the Pi's: "rules" for the provider's "rule" blocks. "for" is
+# quoted because, bare, it starts a for expression.
+output "alert_rules" {
+  value = {
+    groups = [for g in [deevnet_alert_rule_group.backend, deevnet_alert_rule_group.devices] : {
+      name      = g.name
+      type      = g.type
+      interval  = g.interval
+      topic     = g.topic
+      partition = g.partition
+      rules = [for r in g.rule : {
+        alert       = r.alert
+        expr        = r.expr
+        "for"       = r.for
+        labels      = r.labels
+        annotations = r.annotations
+      }]
+    }]
+  }
+}

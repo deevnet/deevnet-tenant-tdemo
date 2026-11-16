@@ -131,6 +131,7 @@ The store is offered, not required. A tenant that keeps its own custody skips th
 | Run your app anywhere | `terraform output -raw kit_env > kit.env`: every endpoint, token and login it needs, by name |
 | Push a metric and read it back | `scripts/metrics-check.sh kit.env`, on your computer or the workload: it also checks each token does only its own job |
 | Get alerts on your phone | `terraform output -json notify`: the ntfy server, login and topics for the ntfy app (Android, on site) |
+| Take your alert rules to a Pi | `terraform output -json alert_rules > rules.json`, then `sudo deevnet-kit alerts import rules.json` on the Pi |
 
 `METRICS_ENDPOINT` needs provider 0.12 or later, and `alerts.tf` 0.13. A copy initialized with an earlier one runs
 `terraform init -upgrade` once, then `terraform apply` to record the new attribute.
